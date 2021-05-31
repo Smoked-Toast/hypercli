@@ -12,7 +12,7 @@ Command Parser::ParseArgs(int argc, char * argv[]){
     const char* const short_opts = "a:o:v:";
     const option long_opts[] = {
             {"action", required_argument, nullptr, 'a'},
-            {"organization", no_argument, nullptr, 'o'},
+            {"organization", required_argument, nullptr, 'o'},
             {"vmid", required_argument, nullptr, 'v'}
     };
 
@@ -23,8 +23,10 @@ Command Parser::ParseArgs(int argc, char * argv[]){
         case 'a':
             break;
         case 'o':
+            mycmd.organization = optarg;
             break;
         case 'v':
+            mycmd.vmid = optarg;
             break;
         }
     }
