@@ -2,10 +2,11 @@
 #define COMMAND_H
 #include <string>
 enum Action {
-    INFO=0,
-    DEPLOY=1,
-    DESTROY=2,
-    UPDATEFDB=3,
+    USAGE=0,
+    INFO=1,
+    DEPLOY=2,
+    DESTROY=3,
+    UPDATEFDB=4,
 
 
     //ERRORS are all negative

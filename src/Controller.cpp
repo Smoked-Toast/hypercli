@@ -13,6 +13,11 @@ int Controller::execute(int argc, char * argv[]){
     }
     Command cmd = this->parser.ParseArgs(argc, argv);
 
+    if (cmd.action == USAGE){
+        this->printUsage(argv[0]);
+        return EXIT_SUCCESS;
+    }
+    
     if (cmd.organization.length() == 0){
         // TODO
         // Log error
