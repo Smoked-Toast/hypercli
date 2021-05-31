@@ -43,7 +43,16 @@ int Controller::execute(int argc, char * argv[]){
         return EXIT_FAILURE;
     }
     else if (cmd.action == INFO){
-
+        // TODO
+    }
+    else if (cmd.action == DEPLOY){
+        // TODO
+    }
+    else if (cmd.action == DESTROY){
+        // TODO
+    }
+    else if (cmd.action == UPDATEFDB){
+        // TODO
     }
     return EXIT_SUCCESS;
 }
