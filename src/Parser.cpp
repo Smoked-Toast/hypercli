@@ -1,4 +1,4 @@
-#include "../include/Parser.h"
+#include "../include/Parser.hpp"
 
 RegexTester::RegexTester() : id_regex("^[a-z0-9]*$"){ }
 

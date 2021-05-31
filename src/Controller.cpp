@@ -1,4 +1,4 @@
-#include "../include/Controller.h"
+#include "../include/Controller.hpp"
 
 Controller::Controller() { }
 
@@ -17,7 +17,7 @@ int Controller::execute(int argc, char * argv[]){
         this->printUsage(argv[0]);
         return EXIT_SUCCESS;
     }
-    
+
     if (cmd.organization.length() == 0){
         // TODO
         // Log error

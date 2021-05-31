@@ -1,4 +1,4 @@
-#include "../include/hypercli.h"
+#include "../include/hypercli.hpp"
 
 int main(int argc, char * argv[]){
 	Controller cli;
