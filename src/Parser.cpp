@@ -21,6 +21,7 @@ Command Parser::ParseArgs(int argc, char * argv[]){
     while ((opt = getopt_long(argc, argv, short_opts, long_opts, nullptr)) != -1) {
         switch (opt) {
         case 'a':
+            mycmd.action = mycmd.GetAction(optarg);
             break;
         case 'o':
             mycmd.organization = optarg;

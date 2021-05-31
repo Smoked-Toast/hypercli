@@ -1,6 +1,5 @@
 #ifndef COMMAND_H
 #define COMMAND_H
-
 #include <string>
 enum Action {
     INFO=0,
@@ -17,6 +16,15 @@ struct Command {
     std::string organization;
     std::string vmid;
     Action action;
+
+    Action GetAction(std::string action){
+        if (action.compare("deploy")==0){
+            return DEPLOY;
+        }
+        else {
+            return ERROR_ARGS;
+        }
+    }
 };
 
 
