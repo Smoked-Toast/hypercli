@@ -3,13 +3,14 @@ TARGET   = hypercli
 CXXFLAGS = -g -Wall -Werror -pedantic-errors -fmessage-length=0
 COBJ = Controller.o Parser.o
 
-all: Controller
-	g++ $(CXXFLAGS) $(TARGET).cpp -o $(TARGET) $(COBJ)
+all: Controller Parser
+	g++ $(CXXFLAGS) src/$(TARGET).cpp -o $(TARGET) $(COBJ)
 
 Controller:
-	g++ $(CXXFLAGS) Controller.cpp -c
+	g++ $(CXXFLAGS) src/Controller.cpp -c
 
 Parser:
-	g++ $(CXXFLAGS) Parser.cpp -c
+	g++ $(CXXFLAGS) src/Parser.cpp -c
+
 clean:
 	rm -f $(TARGET) *.o
