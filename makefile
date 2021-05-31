@@ -14,3 +14,6 @@ Parser:
 
 clean:
 	rm -f $(TARGET) *.o
+
+test:
+	echo "TODO"

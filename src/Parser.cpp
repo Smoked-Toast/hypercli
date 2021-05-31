@@ -1,8 +1,10 @@
 #include "../include/Parser.h"
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <getopt.h>
+
+RegexTester::RegexTester() : id_regex("^[a-z0-9]*$"){ }
+
+bool RegexTester::Testid(std::string id) {
+    return std::regex_match(id, id_regex);
+}
 
 Parser::Parser() { }
 
@@ -24,10 +26,14 @@ Command Parser::ParseArgs(int argc, char * argv[]){
             mycmd.action = mycmd.GetAction(optarg);
             break;
         case 'o':
-            mycmd.organization = optarg;
+            if (this->tester.Testid(optarg)){
+                mycmd.organization = optarg;
+            }
             break;
         case 'v':
-            mycmd.vmid = optarg;
+            if (this->tester.Testid(optarg)){
+                mycmd.vmid = optarg;
+            }
             break;
         }
     }

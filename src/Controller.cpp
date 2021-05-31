@@ -13,19 +13,27 @@ int Controller::execute(int argc, char * argv[]){
     }
     Command cmd = this->parser.ParseArgs(argc, argv);
 
-    if (cmd.organization.length() == 0 || cmd.vmid.length() == 0){
+    if (cmd.organization.length() == 0){
         // TODO
         // Log error
-
+        std::cout << "Error: Bad input for Organization." << std::endl;
         
         return EXIT_FAILURE;
     }
+    if (cmd.vmid.length() == 0){
+        // TODO
+        // Log error
+        std::cout << "Error: Bad input for vmid." << std::endl;
+        
+        return EXIT_FAILURE;
+    }
+
 
     // If error
     if (cmd.action == ERROR_ARGS){
         // TODO
         // Log error
-
+        
 
         return EXIT_FAILURE;
     }
