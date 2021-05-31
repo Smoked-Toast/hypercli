@@ -1,16 +1,16 @@
-## hypercli
+# hypercli
 
-# Build
+## Build
 ```
 make
 ```
 
-# Test
+## Test
 ```
 make test
 ```
 
-# Get Usage
+## Get Usage
 ```
 ./hypercli 
 ```
