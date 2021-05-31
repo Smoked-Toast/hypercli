@@ -9,8 +9,8 @@ class Controller {
         Controller();
         int execute(int argc, char * argv[]);
     private:
-        Parser myparser;
-        int test;
+        Parser parser;
+        void printUsage(char * name);
 };
 
 #endif
