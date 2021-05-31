@@ -3,10 +3,6 @@
 #include <iostream>
 #include "Command.hpp"
 #include <regex>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <getopt.h>
 
 class RegexTester {
     public:

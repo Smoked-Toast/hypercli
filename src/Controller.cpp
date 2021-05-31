@@ -1,9 +1,25 @@
 #include "../include/Controller.hpp"
+#include <iostream>
 
 Controller::Controller() { }
 
 void Controller::printUsage(char * name){
     printf("%s --action [info|deploy|destroy|updatefdb] --organization <org> --vmid <vmid>\n", name);
+}
+
+int Controller::deploy(std::string organization, std::string vmid){
+    /** 
+     * TODO
+     * 1. Get VM deployment information
+     *  - vxlan group number 
+     *  - ip addresses of router and other hypervisors on the same vxlan group
+     *  - vcpu's
+     *  - ram
+     * 
+     * 2.  
+     **/
+    
+    
 }
 
 int Controller::execute(int argc, char * argv[]){
@@ -21,6 +37,7 @@ int Controller::execute(int argc, char * argv[]){
     if (cmd.organization.length() == 0){
         // TODO
         // Log error
+        // use stdlib instead
         std::cout << "Error: Bad input for Organization." << std::endl;
         
         return EXIT_FAILURE;
@@ -28,6 +45,7 @@ int Controller::execute(int argc, char * argv[]){
     if (cmd.vmid.length() == 0){
         // TODO
         // Log error
+        // use stdlib instead
         std::cout << "Error: Bad input for vmid." << std::endl;
         
         return EXIT_FAILURE;
@@ -47,6 +65,7 @@ int Controller::execute(int argc, char * argv[]){
     }
     else if (cmd.action == DEPLOY){
         // TODO
+        this->deploy(cmd.organization, cmd.vmid);
     }
     else if (cmd.action == DESTROY){
         // TODO
