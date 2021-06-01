@@ -1,5 +1,6 @@
 #include "../include/Controller.hpp"
 #include <iostream>
+#include <unistd.h>
 
 Controller::Controller() { }
 
@@ -16,10 +17,50 @@ int Controller::deploy(std::string organization, std::string vmid){
      *  - vcpu's
      *  - ram
      * 
-     * 2.  
+     * 2. Configure Guest Network
+     *  - create vxlan interface
+     *  - create bridge for the vxlan interface
+     *  - add fdb entries
+     *  - turn on all interfaces
+     * 
+     * 3. 
      **/
-    
-    
+
+    //TODO
+    //Get this data from some data object in storage
+    std::vector<char *> argv;
+
+    const char * vmtype = "kvm";
+    const char * ram = "4096";
+    const char * vcpu = "1";
+    const char * ostype = "linux";
+    const char * bootdisk = "path=/mnt/dcimages/testimg1/testimg1.qcow2,device=disk";
+    const char * configdisk = "path=/mnt/dcimages/testimg1/testimg1-seed.qcow2,device=disk";
+    const char * networkconfig = "bridge=br-vxlan0,model=virtio,mac=52:54:00:de:45:59";
+
+    argv.push_back((char *)"/usr/bin/virt-install");
+    argv.push_back((char *)"--virt-type");
+    argv.push_back((char *)vmtype);
+    argv.push_back((char *)"--name");
+    argv.push_back((char *)const_cast<char*>(vmid.c_str()));
+    argv.push_back((char *)"--ram");
+    argv.push_back((char *)ram);
+    argv.push_back((char *)"--vcpus");
+    argv.push_back((char *)vcpu);
+    argv.push_back((char *)"--os-type");
+    argv.push_back((char *)ostype);
+    argv.push_back((char *)"--disk");
+    argv.push_back((char *)bootdisk);
+    argv.push_back((char *)"--disk");
+    argv.push_back((char *)configdisk);
+    argv.push_back((char *)"--import");
+    argv.push_back((char *)"--network");
+    argv.push_back((char *)networkconfig);
+    argv.push_back((char *)"--noautoconsole");
+    argv.push_back(NULL);
+
+    execv(argv[0], &argv[0]);
+    return 0;
 }
 
 int Controller::execute(int argc, char * argv[]){
