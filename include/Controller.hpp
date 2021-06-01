@@ -18,7 +18,11 @@ class Controller {
         void printUsage(char * name);
 
         //Deploy a virtual machine on the local hypervisor
-        int deploy(std::string organization, std::string vmid);
+        // int deploy(Command cmd);
+
+        //Execute in a seperate process
+        int Sandbox(Command cmd, int (*f)(Command));
+
 };
 
 #endif
