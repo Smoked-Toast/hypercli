@@ -1,6 +1,7 @@
 #include "../include/Controller.hpp"
 #include <iostream>
 #include <unistd.h>
+#include <sys/wait.h>
 
 Controller::Controller() { }
 
@@ -60,7 +61,8 @@ int Controller::deploy(std::string organization, std::string vmid){
     argv.push_back(NULL);
 
     execv(argv[0], &argv[0]);
-    return 0;
+
+    return EXIT_SUCCESS;
 }
 
 int Controller::execute(int argc, char * argv[]){
@@ -92,7 +94,8 @@ int Controller::execute(int argc, char * argv[]){
         return EXIT_FAILURE;
     }
 
-
+    int retval;
+    retval = EXIT_SUCCESS;
     // If error
     if (cmd.action == ERROR_ARGS){
         // TODO
@@ -106,7 +109,43 @@ int Controller::execute(int argc, char * argv[]){
     }
     else if (cmd.action == DEPLOY){
         // TODO
-        this->deploy(cmd.organization, cmd.vmid);
+        pid_t pid;
+        int status;
+        if ((pid = fork()) == 0){
+            this->deploy(cmd.organization, cmd.vmid);
+            exit(0);
+        } 
+        else if (pid == -1){
+            printf("Error: fork()\n");
+            return EXIT_FAILURE;
+        }
+        else {
+            if (waitpid(pid, &status, 0) > 0) {
+                
+                if (WIFEXITED(status) && !WEXITSTATUS(status)){
+                    printf("program execution successful\n");\
+                    retval = EXIT_SUCCESS;
+                }
+                else if (WIFEXITED(status) && WEXITSTATUS(status)) {
+                    if (WEXITSTATUS(status) == 127) {
+                        printf("execv failed\n");
+                        retval = EXIT_FAILURE;
+                    }
+                    else {
+                        printf("program terminated normally, but returned a non-zero status\n");   
+                        retval = EXIT_FAILURE;             
+                    }
+                }
+                else {
+                    printf("program didn't terminate normally\n");  
+                    retval = EXIT_FAILURE;  
+                }     
+            } 
+            else {
+                printf("waitpid() failed\n");
+                retval = EXIT_FAILURE;
+            }
+        }
     }
     else if (cmd.action == DESTROY){
         // TODO
@@ -114,5 +153,5 @@ int Controller::execute(int argc, char * argv[]){
     else if (cmd.action == UPDATEFDB){
         // TODO
     }
-    return EXIT_SUCCESS;
+    return retval;
 }
