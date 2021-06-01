@@ -122,13 +122,11 @@ int deploy(Command cmd){
      *  - create vxlan interface
      *  - create bridge for the vxlan interface
      *  - add fdb entries
-     *  - turn on all interfaces
-     * 
-     * 3. 
+     *  - turn on all interfaces 
      **/
 
     //TODO
-    //Get this data from some data object in storage
+    //Get this data from some data object in remote storage
     const char * vmtype = "kvm";
     const char * ram = "4096";
     const char * vcpu = "1";

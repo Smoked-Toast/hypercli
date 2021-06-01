@@ -15,5 +15,5 @@ Parser:
 clean:
 	rm -f $(TARGET) *.o
 
-test:
-	echo "TODO"
+test :
+	bash ./tests/test_cli.sh
