@@ -15,5 +15,5 @@ Parser:
 clean:
 	rm -f $(TARGET) *.o
 
-test :
+test:
 	bash ./tests/test_cli.sh

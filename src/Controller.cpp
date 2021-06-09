@@ -59,17 +59,23 @@ int Controller::execute(int argc, char * argv[]){
         return EXIT_SUCCESS;
     }
     Command cmd = this->parser.ParseArgs(argc, argv);
-
+    
     if (cmd.action == USAGE){
         this->printUsage(argv[0]);
         return EXIT_SUCCESS;
+    }
+    else if (cmd.action == ERROR){
+        // TODO
+        // Log error
+        std::cerr << cmd.error << std::endl;
+        return EXIT_FAILURE;
     }
 
     if (cmd.organization.length() == 0){
         // TODO
         // Log error
         // use stdlib instead
-        std::cout << "Error: Bad input for Organization." << std::endl;
+        std::cout << "Error: Bad input for organization." << std::endl;
         
         return EXIT_FAILURE;
     }
@@ -84,15 +90,8 @@ int Controller::execute(int argc, char * argv[]){
 
     int retval;
     retval = EXIT_SUCCESS;
-    // If error
-    if (cmd.action == ERROR_ARGS){
-        // TODO
-        // Log error
-        
 
-        return EXIT_FAILURE;
-    }
-    else if (cmd.action == INFO){
+    if (cmd.action == INFO){
         // TODO
     }
     else if (cmd.action == DEPLOY){
@@ -123,22 +122,23 @@ int deploy(Command cmd){
      *  - create bridge for the vxlan interface
      *  - add fdb entries
      *  - turn on all interfaces 
+     * 
+     * 3. Implement Locking mechanism with failover
      **/
 
     //TODO
     //Get this data from some data object in remote storage
-    const char * vmtype = "kvm";
     const char * ram = "4096";
     const char * vcpu = "1";
     const char * ostype = "linux";
     const char * bootdisk = "path=/mnt/dcimages/testimg1/testimg1.qcow2,device=disk";
     const char * configdisk = "path=/mnt/dcimages/testimg1/testimg1-seed.qcow2,device=disk";
-    const char * networkconfig = "bridge=br-vxlan0,model=virtio,mac=52:54:00:de:45:59";
+    const char * networkconfig = "bridge=br-vxlan0,model=virtio,mac=52:54:00:51:69:ed";
 
     std::vector<char *> spawnvm;
     spawnvm.push_back((char *)"/usr/bin/virt-install");
     spawnvm.push_back((char *)"--virt-type");
-    spawnvm.push_back((char *)vmtype);
+    spawnvm.push_back((char *)"kvm");
     spawnvm.push_back((char *)"--name");
     spawnvm.push_back((char *)const_cast<char*>(cmd.vmid.c_str()));
     spawnvm.push_back((char *)"--ram");
@@ -151,6 +151,8 @@ int deploy(Command cmd){
     spawnvm.push_back((char *)bootdisk);
     spawnvm.push_back((char *)"--disk");
     spawnvm.push_back((char *)configdisk);
+    // TODO
+    // Attatch additional disks?
     spawnvm.push_back((char *)"--import");
     spawnvm.push_back((char *)"--network");
     spawnvm.push_back((char *)networkconfig);

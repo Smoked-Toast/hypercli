@@ -1,6 +1,7 @@
 #ifndef COMMAND_H
 #define COMMAND_H
 #include <string>
+
 enum Action {
     USAGE=0,
     INFO=1,
@@ -9,14 +10,15 @@ enum Action {
     UPDATEFDB=4,
 
 
-    //ERRORS are all negative
-    ERROR_ARGS=-1
+    // Action Error,
+    ERROR=-1
 };
 
 struct Command {
     std::string organization;
     std::string vmid;
     Action action;
+    std::string error;
 
     Action GetAction(std::string action){
         if (action.compare("info")==0){
@@ -32,7 +34,8 @@ struct Command {
             return UPDATEFDB;
         }
         else {
-            return ERROR_ARGS;
+            error = "Error: Bad input for action.";
+            return ERROR;
         }
     }
 };

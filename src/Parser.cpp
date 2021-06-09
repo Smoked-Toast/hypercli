@@ -22,13 +22,18 @@ Command Parser::ParseArgs(int argc, char * argv[]){
             {"vmid", required_argument, nullptr, 'v'},
             {"help", no_argument, nullptr, 'h'}
     };
-
+    mycmd.action=ERROR;
+    mycmd.error="Error: Bad input for action.";
 
     int opt;
+    opterr = 0;
     while ((opt = getopt_long(argc, argv, short_opts, long_opts, nullptr)) != -1) {
         switch (opt) {
         case 'a':
             mycmd.action = mycmd.GetAction(optarg);
+            if (mycmd.action == ERROR){
+                return mycmd;
+            }
             break;
         case 'o':
             if (this->tester.Testid(optarg)){
