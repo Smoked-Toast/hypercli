@@ -1,17 +1,15 @@
 #!/bin/bash
 
-file=hypercli.cpp
-command="./${file%.*}"
+command="./hypercli"
 
 if [ ! -f "$command" ]; then
-    echo -e "Error: File '$file' not found.\nTest failed."
+    echo -e "Error: File '$command' not found.\nTest failed."
     exit 1
 fi
 
 num_right=0
 total=0
 line="________________________________________________________________________"
-extension=${file##*.}
 
 run_test() {
     (( ++total ))
@@ -47,7 +45,7 @@ run_test "--action updatefdb" "Error: Bad input for organization."
 run_test "--action info --organization" "Error: Bad input for organization."
 run_test "--action info --organization 123!" "Error: Bad input for organization."
 run_test "--action info --organization 123#" "Error: Bad input for organization."
-run_test "--action info --organization 123@" "Error: Bad input for organization."
+run_test "--action info --organization 12@3" "Error: Bad input for organization."
 run_test "--action info --organization 123(" "Error: Bad input for organization."
 run_test "--action info --organization '123 123'" "Error: Bad input for organization."
 run_test "--action info --organization 123" "Error: Bad input for vmid."
