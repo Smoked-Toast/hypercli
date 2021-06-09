@@ -2,7 +2,9 @@
 #define PARSER_H
 #include <iostream>
 #include "Command.hpp"
+#include "Deployment.hpp"
 #include <regex>
+#include <fstream>
 
 class RegexTester {
     public:
@@ -20,6 +22,7 @@ class Parser {
     public:
         Parser();
         Command ParseArgs(int argc, char * argv[]);
+        int ParseDeployment(char * file, Deployment * d);
     private:
         RegexTester tester;
 };

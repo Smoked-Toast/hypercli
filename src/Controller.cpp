@@ -4,11 +4,11 @@
 #include <sys/wait.h>
 
 // Function prototype.
-int deploy(Command cmd);
+int deploy(void * vm);
 
 Controller::Controller() { }
 
-int Controller::Sandbox(Command cmd, int (*f)(Command)) {
+int Controller::Sandbox(void * cmd, int (*f)(void *)) {
     pid_t pid;
     int status;
     if ((pid = fork()) == 0){
@@ -96,8 +96,18 @@ int Controller::execute(int argc, char * argv[]){
     }
     else if (cmd.action == DEPLOY){
         // TODO
-        int (*f)(Command) = deploy;
-        this->Sandbox(cmd, f);
+        Deployment vm;
+        char dpath[256];
+        sprintf(dpath, "/mnt/dcimages/%s/config/deployment", cmd.vmid.c_str());
+
+        int res = this->parser.ParseDeployment(dpath, &vm);
+
+        if (res == EXIT_FAILURE){
+            std::cout << "Error: parsing deployment" << std::endl;
+            return res;
+        }
+        int (*f)(void *) = deploy;
+        this->Sandbox(&vm, f);
     }
     else if (cmd.action == DESTROY){
         // TODO
@@ -108,7 +118,7 @@ int Controller::execute(int argc, char * argv[]){
     return retval;
 }
 
-int deploy(Command cmd){
+int deploy(void * vm){
     /** 
      * TODO
      * 1. Get VM deployment information
@@ -128,25 +138,34 @@ int deploy(Command cmd){
 
     //TODO
     //Get this data from some data object in remote storage
-    const char * ram = "4096";
-    const char * vcpu = "1";
-    const char * ostype = "linux";
-    const char * bootdisk = "path=/mnt/dcimages/testimg1/testimg1.qcow2,device=disk";
-    const char * configdisk = "path=/mnt/dcimages/testimg1/testimg1-seed.qcow2,device=disk";
-    const char * networkconfig = "bridge=br-vxlan0,model=virtio,mac=52:54:00:51:69:ed";
+    Deployment * d = (Deployment *)vm;
 
+    // const char * ram = "4096";
+    // const char * vcpu = "1";
+    // const char * ostype = "linux";
+    // const char * bootdisk = "path=/mnt/dcimages/testimg1/testimg1.qcow2,device=disk";
+    // const char * configdisk = "path=/mnt/dcimages/testimg1/testimg1-seed.qcow2,device=disk";
+    char bootdisk[256];
+    char configdisk[256];
+    char networkconfig[256];
+
+    sprintf(bootdisk, "path=/mnt/dcimages/%s/disks/boot.qcow2,device=disk", (char *)const_cast<char*>(d->vmid.c_str()));
+    sprintf(configdisk, "path=/mnt/dcimages/%s/disks/seed.qcow2,device=disk", (char *)const_cast<char*>(d->vmid.c_str()));
+    sprintf(networkconfig, "bridge=br-vxlan%s,model=virtio,mac=%s", (char *)const_cast<char*>(d->vni.c_str()), (char *)const_cast<char*>(d->mac.c_str()));
+    std::cout << networkconfig << std::endl;
+    //const char * networkconfig = "bridge=br-vxlan0,model=virtio,mac=52:54:00:51:69:ed";
     std::vector<char *> spawnvm;
     spawnvm.push_back((char *)"/usr/bin/virt-install");
     spawnvm.push_back((char *)"--virt-type");
     spawnvm.push_back((char *)"kvm");
     spawnvm.push_back((char *)"--name");
-    spawnvm.push_back((char *)const_cast<char*>(cmd.vmid.c_str()));
+    spawnvm.push_back((char *)const_cast<char*>(d->vmid.c_str()));
     spawnvm.push_back((char *)"--ram");
-    spawnvm.push_back((char *)ram);
+    spawnvm.push_back((char *)const_cast<char*>(d->ram.c_str()));
     spawnvm.push_back((char *)"--vcpus");
-    spawnvm.push_back((char *)vcpu);
+    spawnvm.push_back((char *)const_cast<char*>(d->vcpu.c_str()));
     spawnvm.push_back((char *)"--os-type");
-    spawnvm.push_back((char *)ostype);
+    spawnvm.push_back((char *)const_cast<char*>(d->ostype.c_str()));
     spawnvm.push_back((char *)"--disk");
     spawnvm.push_back((char *)bootdisk);
     spawnvm.push_back((char *)"--disk");

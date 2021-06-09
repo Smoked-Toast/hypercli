@@ -21,7 +21,7 @@ class Controller {
         // int deploy(Command cmd);
 
         //Execute in a seperate process
-        int Sandbox(Command cmd, int (*f)(Command));
+        int Sandbox(void * cmd, int (*f)(void *));
 
 };
 
