@@ -11,6 +11,9 @@ public:
     std::string ostype;
     std::string vni;
     std::string mac;
+    std::string bootdisk;
+    std::string configdisk;
+    std::string networkconfig;
 
     int add(std::string name, std::string property){
         if (name == "vmid"){

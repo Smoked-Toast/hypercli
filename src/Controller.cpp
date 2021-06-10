@@ -3,8 +3,21 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-// Function prototype.
-int deploy(void * vm);
+struct Network {
+    char * interface;
+    char * bridge;
+    char * vni;
+};
+
+// Function prototypes.
+void createlinkBuilder(std::vector<char *> * cmd, Network * n);
+void addfdbBuilder(std::vector<char *> * cmd, Network * n);
+void createbridgeBuilder(std::vector<char *> * cmd, Network * n);
+void setmasterBuilder(std::vector<char *> * cmd, Network * n);
+void upinterfaceBuilder(std::vector<char *> * cmd, Network * n);
+void upbridgeBuilder(std::vector<char *> * cmd, Network * n);
+void spawnvmBuilder(std::vector<char *> * cmd, Deployment * d);
+
 
 Controller::Controller() { }
 
@@ -109,80 +122,15 @@ int Controller::execute(int argc, char * argv[]){
 
         // int (*f)(void *) = deploy;
         // this->Sandbox(&d, f);
-
-
+        Network n;
+        n.vni = (char *)const_cast<char*>(d.vni.c_str());
 
         char interface[30];
         char bridge[32];
-        sprintf(interface, "vxlan%s", (char *)const_cast<char*>(d.vni.c_str()));
-        sprintf(bridge, "br-vxlan%s", (char *)const_cast<char*>(d.vni.c_str()));
-
-        //ip link add vxlan1 type vxlan id 1 dev eno1 dstport 0
-        std::vector<char *> createlink;
-        createlink.push_back((char *)"/usr/sbin/ip");
-        createlink.push_back((char *)"link");
-        createlink.push_back((char *)"add");
-        createlink.push_back((char *)interface);
-        createlink.push_back((char *)"type");
-        createlink.push_back((char *)"vxlan");
-        createlink.push_back((char *)"id");
-        createlink.push_back((char *)(char *)const_cast<char*>(d.vni.c_str()));
-        createlink.push_back((char *)"dev");
-        createlink.push_back((char *)"eno1");
-        createlink.push_back((char *)"dstport");
-        createlink.push_back((char *)"0");
-        createlink.push_back(NULL);
-
-        //bridge fdb append to 00:00:00:00:00:00 dst 192.168.1.101 dev vxlan1
-        std::vector<char *> addfdb;
-        addfdb.push_back((char *)"/usr/sbin/bridge");
-        addfdb.push_back((char *)"fdb");
-        addfdb.push_back((char *)"append");
-        addfdb.push_back((char *)"to");
-        addfdb.push_back((char *)"00:00:00:00:00:00");
-        addfdb.push_back((char *)"dst");
-        addfdb.push_back((char *)"192.168.1.101");
-        addfdb.push_back((char *)"dev");
-        addfdb.push_back((char *)interface);
-        addfdb.push_back(NULL);
-
-        //ip link add br-vxlan1 type bridge
-        std::vector<char *> createbridge;
-        createbridge.push_back((char *)"/usr/sbin/ip");
-        createbridge.push_back((char *)"link");
-        createbridge.push_back((char *)"add");
-        createbridge.push_back((char *)bridge);
-        createbridge.push_back((char *)"type");
-        createbridge.push_back((char *)"bridge");
-        createbridge.push_back(NULL);
-
-        //ip link set vxlan1 master br-vxlan1
-        std::vector<char *> setmaster;
-        setmaster.push_back((char *)"/usr/sbin/ip");
-        setmaster.push_back((char *)"link");
-        setmaster.push_back((char *)"set");
-        setmaster.push_back((char *)interface);
-        setmaster.push_back((char *)"master");
-        setmaster.push_back((char *)bridge);
-        setmaster.push_back(NULL);
-
-        //ip link set vxlan1 up
-        std::vector<char *> upinterface;
-        upinterface.push_back((char *)"/usr/sbin/ip");
-        upinterface.push_back((char *)"link");
-        upinterface.push_back((char *)"set");
-        upinterface.push_back((char *)interface);
-        upinterface.push_back((char *)"up");
-        upinterface.push_back(NULL);
-
-        //ip link set br-vxlan1 up
-        std::vector<char *> upbridge;
-        upbridge.push_back((char *)"/usr/sbin/ip");
-        upbridge.push_back((char *)"link");
-        upbridge.push_back((char *)"set");
-        upbridge.push_back((char *)bridge);
-        upbridge.push_back((char *)"up");
-        upbridge.push_back(NULL);
+        sprintf(interface, "vxlan%s", n.vni);
+        sprintf(bridge, "br-vxlan%s", n.vni);
+        n.bridge = bridge;
+        n.interface = interface;
 
         char bootdisk[256];
         char configdisk[256];
@@ -190,38 +138,44 @@ int Controller::execute(int argc, char * argv[]){
         sprintf(bootdisk, "path=/mnt/dcimages/%s/disks/boot.qcow2,device=disk", (char *)const_cast<char*>(d.vmid.c_str()));
         sprintf(configdisk, "path=/mnt/dcimages/%s/disks/seed.qcow2,device=disk", (char *)const_cast<char*>(d.vmid.c_str()));
         sprintf(networkconfig, "bridge=br-vxlan%s,model=virtio,mac=%s", (char *)const_cast<char*>(d.vni.c_str()), (char *)const_cast<char*>(d.mac.c_str()));
+        d.bootdisk = bootdisk;
+        d.configdisk = configdisk;
+        d.networkconfig = networkconfig;
+
+        //ip link add vxlan1 type vxlan id 1 dev eno1 dstport 0
+        std::vector<char *> createlink;
+        createlinkBuilder(&createlink, &n);
+
+        //bridge fdb append to 00:00:00:00:00:00 dst 192.168.1.101 dev vxlan1
+        std::vector<char *> addfdb;
+        addfdbBuilder(&addfdb, &n);
+
+        //ip link add br-vxlan1 type bridge
+        std::vector<char *> createbridge;
+        createbridgeBuilder(&createbridge, &n);
+
+        //ip link set vxlan1 master br-vxlan1
+        std::vector<char *> setmaster;
+        setmasterBuilder(&setmaster, &n);
+
+        //ip link set vxlan1 up
+        std::vector<char *> upinterface;
+        upinterfaceBuilder(&upinterface, &n);
+
+        //ip link set br-vxlan1 up
+        std::vector<char *> upbridge;
+        upbridgeBuilder(&upbridge, &n);
         
         std::vector<char *> spawnvm;
-        spawnvm.push_back((char *)"/usr/bin/virt-install");
-        spawnvm.push_back((char *)"--virt-type");
-        spawnvm.push_back((char *)"kvm");
-        spawnvm.push_back((char *)"--name");
-        spawnvm.push_back((char *)const_cast<char*>(d.vmid.c_str()));
-        spawnvm.push_back((char *)"--ram");
-        spawnvm.push_back((char *)const_cast<char*>(d.ram.c_str()));
-        spawnvm.push_back((char *)"--vcpus");
-        spawnvm.push_back((char *)const_cast<char*>(d.vcpu.c_str()));
-        spawnvm.push_back((char *)"--os-type");
-        spawnvm.push_back((char *)const_cast<char*>(d.ostype.c_str()));
-        spawnvm.push_back((char *)"--disk");
-        spawnvm.push_back((char *)bootdisk);
-        spawnvm.push_back((char *)"--disk");
-        spawnvm.push_back((char *)configdisk);
-        // TODO
-        // Attatch additional disks?
-        spawnvm.push_back((char *)"--import");
-        spawnvm.push_back((char *)"--network");
-        spawnvm.push_back((char *)networkconfig);
-        spawnvm.push_back((char *)"--noautoconsole");
-        spawnvm.push_back(NULL);
+        spawnvmBuilder(&spawnvm, &d);
 
-        this->Sandbox(&createlink[0]);
-        this->Sandbox(&addfdb[0]);
-        this->Sandbox(&createbridge[0]);
-        this->Sandbox(&setmaster[0]);
-        this->Sandbox(&upinterface[0]);
-        this->Sandbox(&upbridge[0]);
-        this->Sandbox(&spawnvm[0]);
+        // this->Sandbox(&createlink[0]);
+        // this->Sandbox(&addfdb[0]);
+        // this->Sandbox(&createbridge[0]);
+        // this->Sandbox(&setmaster[0]);
+        // this->Sandbox(&upinterface[0]);
+        // this->Sandbox(&upbridge[0]);
+        // this->Sandbox(&spawnvm[0]);
     }
     else if (cmd.action == DESTROY){
         // TODO
@@ -230,4 +184,97 @@ int Controller::execute(int argc, char * argv[]){
         // TODO
     }
     return retval;
+}
+
+void createlinkBuilder(std::vector<char *> * cmd, Network * n){
+    cmd->push_back((char *)"/usr/sbin/ip");
+    cmd->push_back((char *)"link");
+    cmd->push_back((char *)"add");
+    cmd->push_back((char *)n->interface);
+    cmd->push_back((char *)"type");
+    cmd->push_back((char *)"vxlan");
+    cmd->push_back((char *)"id");
+    cmd->push_back(n->vni);
+    cmd->push_back((char *)"dev");
+    cmd->push_back((char *)"eno1");
+    cmd->push_back((char *)"dstport");
+    cmd->push_back((char *)"0");
+    cmd->push_back(NULL);
+}
+
+void addfdbBuilder(std::vector<char *> * cmd, Network * n){
+    cmd->push_back((char *)"/usr/sbin/bridge");
+    cmd->push_back((char *)"fdb");
+    cmd->push_back((char *)"append");
+    cmd->push_back((char *)"to");
+    cmd->push_back((char *)"00:00:00:00:00:00");
+    cmd->push_back((char *)"dst");
+    cmd->push_back((char *)"192.168.1.101");
+    cmd->push_back((char *)"dev");
+    cmd->push_back((char *)n->interface);
+    cmd->push_back(NULL);
+}
+
+void createbridgeBuilder(std::vector<char *> * cmd, Network * n){
+    cmd->push_back((char *)"/usr/sbin/ip");
+    cmd->push_back((char *)"link");
+    cmd->push_back((char *)"add");
+    cmd->push_back((char *)n->bridge);
+    cmd->push_back((char *)"type");
+    cmd->push_back((char *)"bridge");
+    cmd->push_back(NULL);
+}
+
+void setmasterBuilder(std::vector<char *> * cmd, Network * n){
+    cmd->push_back((char *)"/usr/sbin/ip");
+    cmd->push_back((char *)"link");
+    cmd->push_back((char *)"set");
+    cmd->push_back((char *)n->interface);
+    cmd->push_back((char *)"master");
+    cmd->push_back((char *)n->bridge);
+    cmd->push_back(NULL);
+}
+
+void upinterfaceBuilder(std::vector<char *> * cmd, Network * n){
+    cmd->push_back((char *)"/usr/sbin/ip");
+    cmd->push_back((char *)"link");
+    cmd->push_back((char *)"set");
+    cmd->push_back((char *)n->interface);
+    cmd->push_back((char *)"up");
+    cmd->push_back(NULL);
+}
+
+void upbridgeBuilder(std::vector<char *> * cmd, Network * n){
+    cmd->push_back((char *)"/usr/sbin/ip");
+    cmd->push_back((char *)"link");
+    cmd->push_back((char *)"set");
+    cmd->push_back((char *)n->bridge);
+    cmd->push_back((char *)"up");
+    cmd->push_back(NULL);
+}
+
+void spawnvmBuilder(std::vector<char *> * cmd, Deployment * d){
+
+    cmd->push_back((char *)"/usr/bin/virt-install");
+    cmd->push_back((char *)"--virt-type");
+    cmd->push_back((char *)"kvm");
+    cmd->push_back((char *)"--name");
+    cmd->push_back((char *)const_cast<char*>(d->vmid.c_str()));
+    cmd->push_back((char *)"--ram");
+    cmd->push_back((char *)const_cast<char*>(d->ram.c_str()));
+    cmd->push_back((char *)"--vcpus");
+    cmd->push_back((char *)const_cast<char*>(d->vcpu.c_str()));
+    cmd->push_back((char *)"--os-type");
+    cmd->push_back((char *)const_cast<char*>(d->ostype.c_str()));
+    cmd->push_back((char *)"--disk");
+    cmd->push_back((char *)const_cast<char*>(d->bootdisk.c_str()));
+    cmd->push_back((char *)"--disk");
+    cmd->push_back((char *)const_cast<char*>(d->configdisk.c_str()));
+    // TODO
+    // Attatch additional disks?
+    cmd->push_back((char *)"--import");
+    cmd->push_back((char *)"--network");
+    cmd->push_back((char *)const_cast<char*>(d->networkconfig.c_str()));
+    cmd->push_back((char *)"--noautoconsole");
+    cmd->push_back(NULL);
 }
