@@ -2,11 +2,33 @@
 #include <iostream>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <ifaddrs.h>
 
-struct Network {
+class Network {
+public:
     char * interface;
     char * bridge;
     char * vni;
+
+    Network(char * v){
+        vni = new char[8];
+        interface = new char[20];
+        bridge = new char[22];
+        sprintf(interface, "vxlan%s", v);
+        sprintf(bridge, "br-vxlan%s", v);
+        sprintf(vni, "%s", v);
+    }
+    ~Network(){
+        delete [] interface;
+        delete [] bridge;
+        delete [] vni;
+    }
 };
 
 // Function prototypes.
@@ -17,6 +39,8 @@ void setmasterBuilder(std::vector<char *> * cmd, Network * n);
 void upinterfaceBuilder(std::vector<char *> * cmd, Network * n);
 void upbridgeBuilder(std::vector<char *> * cmd, Network * n);
 void spawnvmBuilder(std::vector<char *> * cmd, Deployment * d);
+
+int is_interface_online(std::string interface);
 
 
 Controller::Controller() { }
@@ -112,7 +136,6 @@ int Controller::execute(int argc, char * argv[]){
         Deployment d;
         char dpath[256];
         sprintf(dpath, "/mnt/dcimages/%s/config/deployment", cmd.vmid.c_str());
-
         int res = this->parser.ParseDeployment(dpath, &d);
 
         if (res == EXIT_FAILURE){
@@ -120,17 +143,8 @@ int Controller::execute(int argc, char * argv[]){
             return res;
         }
 
-        // int (*f)(void *) = deploy;
-        // this->Sandbox(&d, f);
-        Network n;
-        n.vni = (char *)const_cast<char*>(d.vni.c_str());
-
-        char interface[30];
-        char bridge[32];
-        sprintf(interface, "vxlan%s", n.vni);
-        sprintf(bridge, "br-vxlan%s", n.vni);
-        n.bridge = bridge;
-        n.interface = interface;
+        Network n((char *)const_cast<char*>(d.vni.c_str()));
+        
 
         char bootdisk[256];
         char configdisk[256];
@@ -169,16 +183,38 @@ int Controller::execute(int argc, char * argv[]){
         std::vector<char *> spawnvm;
         spawnvmBuilder(&spawnvm, &d);
 
-        // this->Sandbox(&createlink[0]);
-        // this->Sandbox(&addfdb[0]);
-        // this->Sandbox(&createbridge[0]);
-        // this->Sandbox(&setmaster[0]);
-        // this->Sandbox(&upinterface[0]);
-        // this->Sandbox(&upbridge[0]);
-        // this->Sandbox(&spawnvm[0]);
+        if (is_interface_online(n.interface) == 0){
+            this->Sandbox(&createlink[0]);
+            this->Sandbox(&addfdb[0]);
+            this->Sandbox(&createbridge[0]);
+            this->Sandbox(&setmaster[0]);
+            this->Sandbox(&upinterface[0]);
+            this->Sandbox(&upbridge[0]);
+
+            printf("started interface");
+        }
+        this->Sandbox(&spawnvm[0]);
     }
     else if (cmd.action == DESTROY){
-        // TODO
+        // // TODO
+        // Deployment d;
+        // char dpath[256];
+        // sprintf(dpath, "/mnt/dcimages/%s/config/deployment", cmd.vmid.c_str());
+        // int res = this->parser.ParseDeployment(dpath, &d);
+
+        // if (res == EXIT_FAILURE){
+        //     std::cout << "Error: parsing deployment" << std::endl;
+        //     return res;
+        // }
+
+        // Network n((char *)const_cast<char*>(d.vni.c_str()));
+
+        // //virsh shutdown vmid
+        // std::vector<char *> shutdownvm;
+        // shutdownvmBuilder(&shutdownvm, &d);
+
+        // //virsh undefine vmid
+
     }
     else if (cmd.action == UPDATEFDB){
         // TODO
@@ -277,4 +313,60 @@ void spawnvmBuilder(std::vector<char *> * cmd, Deployment * d){
     cmd->push_back((char *)const_cast<char*>(d->networkconfig.c_str()));
     cmd->push_back((char *)"--noautoconsole");
     cmd->push_back(NULL);
+}
+
+void shutdownvmBuilder(std::vector<char *> * cmd, Deployment * d){
+    cmd->push_back((char *)"/usr/bin/virsh");
+    cmd->push_back((char *)"shutdown");
+    cmd->push_back((char *)const_cast<char*>(d->vmid.c_str()));
+    cmd->push_back(NULL);
+}
+
+void undefinevmBuilder(std::vector<char *> * cmd, Deployment * d){
+    cmd->push_back((char *)"/usr/bin/virsh");
+    cmd->push_back((char *)"undefine");
+    cmd->push_back((char *)const_cast<char*>(d->vmid.c_str()));
+    cmd->push_back(NULL);
+}
+
+void deleteinterfaceBuilder(std::vector<char *> * cmd, Network * n){
+    cmd->push_back((char *)"/usr/sbin/ip");
+    cmd->push_back((char *)"link");
+    cmd->push_back((char *)"delete");
+    cmd->push_back((char *)n->interface);
+    cmd->push_back(NULL);
+}
+
+void deletebridgeBuilder(std::vector<char *> * cmd, Network * n){
+    cmd->push_back((char *)"/usr/sbin/ip");
+    cmd->push_back((char *)"link");
+    cmd->push_back((char *)"delete");
+    cmd->push_back((char *)n->bridge);
+    cmd->push_back(NULL);
+}
+
+int is_interface_online(std::string interface) {
+    std::vector<char *> inets;
+    struct ifaddrs *addresses;
+    if (getifaddrs(&addresses) == -1) {
+        printf("getifaddrs call failed\n");
+        return -1;
+    }
+
+    struct ifaddrs *address = addresses;
+    while (address) {
+        int family = address->ifa_addr->sa_family;
+        if (family == AF_INET || family == AF_INET6) {
+            inets.push_back(address->ifa_name);
+        }
+        address = address->ifa_next;
+    }
+    freeifaddrs(addresses);
+
+    if(std::find(inets.begin(), inets.end(), interface) != inets.end()){
+        return 1;
+    }
+    else {
+        return 0;
+    }
 }
