@@ -1,3 +1,5 @@
+#include <string>
+
 #include "../include/ExecBuilder.hpp"
 #include "../include/Network.hpp"
 #include "../include/Deployment.hpp"
