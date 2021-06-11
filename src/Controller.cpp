@@ -1,5 +1,3 @@
-#include "../include/Controller.hpp"
-#include <iostream>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -9,6 +7,12 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include <ifaddrs.h>
+#include <vector>
+#include <algorithm>
+
+#include "../include/Parser.hpp"
+#include "../include/Controller.hpp"
+
 
 class Network {
 public:
@@ -39,6 +43,10 @@ void setmasterBuilder(std::vector<char *> * cmd, Network * n);
 void upinterfaceBuilder(std::vector<char *> * cmd, Network * n);
 void upbridgeBuilder(std::vector<char *> * cmd, Network * n);
 void spawnvmBuilder(std::vector<char *> * cmd, Deployment * d);
+void destroyvmBuilder(std::vector<char *> * cmd, Deployment * d);
+void undefinevmBuilder(std::vector<char *> * cmd, Deployment * d);
+void deleteinterfaceBuilder(std::vector<char *> * cmd, Deployment * d);
+void deletebridgeBuilder(std::vector<char *> * cmd, Deployment * d);
 
 int is_interface_online(std::string interface);
 
@@ -95,7 +103,7 @@ int Controller::execute(int argc, char * argv[]){
         this->printUsage(argv[0]);
         return EXIT_SUCCESS;
     }
-    Command cmd = this->parser.ParseArgs(argc, argv);
+    Command cmd = ParseArgs(argc, argv);
     
     if (cmd.action == USAGE){
         this->printUsage(argv[0]);
@@ -104,24 +112,20 @@ int Controller::execute(int argc, char * argv[]){
     else if (cmd.action == ERROR){
         // TODO
         // Log error
-        std::cerr << cmd.error << std::endl;
+        printf("%s\n", cmd.error.c_str());
         return EXIT_FAILURE;
     }
 
     if (cmd.organization.length() == 0){
-        // TODO
-        // Log error
-        // use stdlib instead
-        std::cout << "Error: Bad input for organization." << std::endl;
+
+        printf("Error: Bad input for organization.\n");
         
         return EXIT_FAILURE;
     }
     if (cmd.vmid.length() == 0){
-        // TODO
-        // Log error
-        // use stdlib instead
-        std::cout << "Error: Bad input for vmid." << std::endl;
-        
+
+        printf("Error: Bad input for vmid.\n");
+
         return EXIT_FAILURE;
     }
 
@@ -133,28 +137,19 @@ int Controller::execute(int argc, char * argv[]){
     }
     else if (cmd.action == DEPLOY){
         // TODO
-        Deployment d;
+        // Check for LOCK. Create a Lock if it doesnt exist
+
+        
         char dpath[256];
         sprintf(dpath, "/mnt/dcimages/%s/config/deployment", cmd.vmid.c_str());
-        int res = this->parser.ParseDeployment(dpath, &d);
-
-        if (res == EXIT_FAILURE){
-            std::cout << "Error: parsing deployment" << std::endl;
-            return res;
+        Deployment * d = ParseDeployment(dpath);
+        if (d == NULL){
+            printf("Error: parsing deployment");
+            delete d;
+            return EXIT_FAILURE;
         }
 
-        Network n((char *)const_cast<char*>(d.vni.c_str()));
-        
-
-        char bootdisk[256];
-        char configdisk[256];
-        char networkconfig[256];
-        sprintf(bootdisk, "path=/mnt/dcimages/%s/disks/boot.qcow2,device=disk", (char *)const_cast<char*>(d.vmid.c_str()));
-        sprintf(configdisk, "path=/mnt/dcimages/%s/disks/seed.qcow2,device=disk", (char *)const_cast<char*>(d.vmid.c_str()));
-        sprintf(networkconfig, "bridge=br-vxlan%s,model=virtio,mac=%s", (char *)const_cast<char*>(d.vni.c_str()), (char *)const_cast<char*>(d.mac.c_str()));
-        d.bootdisk = bootdisk;
-        d.configdisk = configdisk;
-        d.networkconfig = networkconfig;
+        Network n(d->vni);
 
         //ip link add vxlan1 type vxlan id 1 dev eno1 dstport 0
         std::vector<char *> createlink;
@@ -181,7 +176,7 @@ int Controller::execute(int argc, char * argv[]){
         upbridgeBuilder(&upbridge, &n);
         
         std::vector<char *> spawnvm;
-        spawnvmBuilder(&spawnvm, &d);
+        spawnvmBuilder(&spawnvm, d);
 
         if (is_interface_online(n.interface) == 0){
             this->Sandbox(&createlink[0]);
@@ -194,27 +189,34 @@ int Controller::execute(int argc, char * argv[]){
             printf("started interface");
         }
         this->Sandbox(&spawnvm[0]);
+
+        delete d;
     }
     else if (cmd.action == DESTROY){
-        // // TODO
-        // Deployment d;
-        // char dpath[256];
-        // sprintf(dpath, "/mnt/dcimages/%s/config/deployment", cmd.vmid.c_str());
-        // int res = this->parser.ParseDeployment(dpath, &d);
+        // TODO
+        char dpath[256];
+        sprintf(dpath, "/mnt/dcimages/%s/config/deployment", cmd.vmid.c_str());
+        Deployment * d = ParseDeployment(dpath);
 
-        // if (res == EXIT_FAILURE){
-        //     std::cout << "Error: parsing deployment" << std::endl;
-        //     return res;
-        // }
+        if (d == NULL){
+            printf("Error: parsing deployment");
+            delete d;
+            return EXIT_FAILURE;
+        }
+        Network n(d->vni);
 
-        // Network n((char *)const_cast<char*>(d.vni.c_str()));
+        //virsh destroy vmid
+        std::vector<char *> destroyvm;
+        destroyvmBuilder(&destroyvm, d);
 
-        // //virsh shutdown vmid
-        // std::vector<char *> shutdownvm;
-        // shutdownvmBuilder(&shutdownvm, &d);
+        //virsh undefine vmid
+        std::vector<char *> undefinevm;
+        undefinevmBuilder(&undefinevm, d);
+        
+        this->Sandbox(&destroyvm[0]);
+        this->Sandbox(&undefinevm[0]);
 
-        // //virsh undefine vmid
-
+        delete d;
     }
     else if (cmd.action == UPDATEFDB){
         // TODO
@@ -295,37 +297,37 @@ void spawnvmBuilder(std::vector<char *> * cmd, Deployment * d){
     cmd->push_back((char *)"--virt-type");
     cmd->push_back((char *)"kvm");
     cmd->push_back((char *)"--name");
-    cmd->push_back((char *)const_cast<char*>(d->vmid.c_str()));
+    cmd->push_back(d->vmid);
     cmd->push_back((char *)"--ram");
-    cmd->push_back((char *)const_cast<char*>(d->ram.c_str()));
+    cmd->push_back(d->ram);
     cmd->push_back((char *)"--vcpus");
-    cmd->push_back((char *)const_cast<char*>(d->vcpu.c_str()));
+    cmd->push_back(d->vcpu);
     cmd->push_back((char *)"--os-type");
-    cmd->push_back((char *)const_cast<char*>(d->ostype.c_str()));
+    cmd->push_back(d->ostype);
     cmd->push_back((char *)"--disk");
-    cmd->push_back((char *)const_cast<char*>(d->bootdisk.c_str()));
+    cmd->push_back(d->bootdisk);
     cmd->push_back((char *)"--disk");
-    cmd->push_back((char *)const_cast<char*>(d->configdisk.c_str()));
+    cmd->push_back(d->configdisk);
     // TODO
     // Attatch additional disks?
     cmd->push_back((char *)"--import");
     cmd->push_back((char *)"--network");
-    cmd->push_back((char *)const_cast<char*>(d->networkconfig.c_str()));
+    cmd->push_back(d->networkconfig);
     cmd->push_back((char *)"--noautoconsole");
     cmd->push_back(NULL);
 }
 
-void shutdownvmBuilder(std::vector<char *> * cmd, Deployment * d){
+void destroyvmBuilder(std::vector<char *> * cmd, Deployment * d){
     cmd->push_back((char *)"/usr/bin/virsh");
-    cmd->push_back((char *)"shutdown");
-    cmd->push_back((char *)const_cast<char*>(d->vmid.c_str()));
+    cmd->push_back((char *)"destroy");
+    cmd->push_back(d->vmid);
     cmd->push_back(NULL);
 }
 
 void undefinevmBuilder(std::vector<char *> * cmd, Deployment * d){
     cmd->push_back((char *)"/usr/bin/virsh");
     cmd->push_back((char *)"undefine");
-    cmd->push_back((char *)const_cast<char*>(d->vmid.c_str()));
+    cmd->push_back(d->vmid);
     cmd->push_back(NULL);
 }
 

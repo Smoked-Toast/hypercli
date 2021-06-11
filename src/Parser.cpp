@@ -3,18 +3,57 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
+#include <regex>
+#include <fstream>
 
-RegexTester::RegexTester() : id_regex("^[a-z0-9]*$") {}
+Deployment::Deployment(){}
 
-bool RegexTester::Testid(std::string id)
-{
+Deployment::~Deployment(){
+    delete [] vmid;
+    delete [] ram;
+    delete [] vcpu;
+    delete [] ostype;
+    delete [] vni;
+    delete [] mac;
+    delete [] bootdisk;
+    delete [] configdisk;
+    delete [] networkconfig;
+}
+
+
+int Deployment::add(char * name, char * property){
+    if (strcmp(name,"vmid")==0){
+        vmid = property;
+    }
+    else if (strcmp(name,"ram")==0){
+        ram = property;
+    }
+    else if (strcmp(name,"vcpu")==0){
+        vcpu = property;
+    }
+    else if (strcmp(name,"ostype")==0){
+        ostype = property;
+    }
+    else if (strcmp(name,"vni")==0){
+        vni = property;
+    }
+    else if (strcmp(name,"mac")==0){
+        mac = property;
+    } 
+    else {
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+const std::regex id_regex("^[a-z0-9]*$");
+
+bool Testid(std::string id){
     return std::regex_match(id, id_regex);
 }
 
-Parser::Parser() {}
-
-Command Parser::ParseArgs(int argc, char *argv[])
-{
+Command ParseArgs(int argc, char *argv[]) {
     Command mycmd;
 
     const char *const short_opts = "a:o:v:h";
@@ -40,13 +79,13 @@ Command Parser::ParseArgs(int argc, char *argv[])
             }
             break;
         case 'o':
-            if (this->tester.Testid(optarg))
+            if (Testid(optarg))
             {
                 mycmd.organization = optarg;
             }
             break;
         case 'v':
-            if (this->tester.Testid(optarg))
+            if (Testid(optarg))
             {
                 mycmd.vmid = optarg;
             }
@@ -60,8 +99,9 @@ Command Parser::ParseArgs(int argc, char *argv[])
     return mycmd;
 }
 
-int Parser::ParseDeployment(char * file, Deployment * d) {
-
+// TODO. Efficient string parsing
+Deployment* ParseDeployment(char * file) {
+    Deployment * d = new Deployment();
     std::fstream newfile;
     newfile.open(file, std::ios::in);
     if (newfile.is_open()) {
@@ -69,22 +109,38 @@ int Parser::ParseDeployment(char * file, Deployment * d) {
         while (getline(newfile, line)) {
             int i = line.find("=");
             if (i >= 1){
-                std::string name = line.substr(0, i);
-                std::string property = line.substr(i+1);
+                std::string n = line.substr(0, i);
+                std::string p = line.substr(i+1);
+                char * name = new char[n.length()];
+                char * property = new char[n.length()];
+                strcpy(name, n.c_str());
+                strcpy(property, p.c_str());
 
                 int res = d->add(name, property);
                 if (res == EXIT_FAILURE){
-                    std::cout << "Error: adding attribute: " << name << std::endl;
-                    return res;
+                    printf("Error: adding attribute: %s", name);
+                    return NULL;
                 }
             }
         }
         newfile.close();
+
+        
+
+        char * bootdisk = new char[256];
+        char * configdisk = new char[256];
+        char * networkconfig = new char[256];
+        sprintf(bootdisk, "path=/mnt/dcimages/%s/disks/boot.qcow2,device=disk", d->vmid);
+        sprintf(configdisk, "path=/mnt/dcimages/%s/disks/seed.qcow2,device=disk", d->vmid);
+        sprintf(networkconfig, "bridge=br-vxlan%s,model=virtio,mac=%s", d->vni, d->mac);
+        d->bootdisk = bootdisk;
+        d->configdisk = configdisk;
+        d->networkconfig = networkconfig;
     }
     else {
         // TODO. Handle Error
-        std::cout << "Error: opening deployment file: " << file << std::endl;
-        return EXIT_FAILURE;
+        printf("Error: opening deployment file: %s", file);
+        return NULL;
     }
-    return EXIT_SUCCESS;
+    return d;
 }
