@@ -29,7 +29,11 @@ init:
 	@mkdir -p $(OBJPATH)
 
 install:
-	@echo "TODO"
+	@rm /usr/bin/$(TARGET) -f
+	@make clean
+	make
+	@chmod 755 ./$(TARGET)
+	cp ./$(TARGET) /usr/bin/
 
 test:
 	@bash ./tests/test_cli.sh
