@@ -1,63 +1,23 @@
 #include <algorithm>
 #include <arpa/inet.h>
 #include <ifaddrs.h>
-#include <limits.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <vector>
-#include <fstream>
-#include<iostream>
 
+
+#include "../include/Lock.hpp"
 #include "../include/Parser.hpp"
 #include "../include/Controller.hpp"
-
-class Network
-{
-public:
-    char *interface;
-    char *bridge;
-    char *vni;
-
-    Network(char *v)
-    {
-        vni = new char[8];
-        interface = new char[20];
-        bridge = new char[22];
-        sprintf(interface, "vxlan%s", v);
-        sprintf(bridge, "br-vxlan%s", v);
-        sprintf(vni, "%s", v);
-    }
-    ~Network()
-    {
-        delete[] interface;
-        delete[] bridge;
-        delete[] vni;
-    }
-};
+#include "../include/Network.hpp"
+#include "../include/Deployment.hpp"
+#include "../include/ExecBuilder.hpp"
 
 // Function prototypes.
-void createlinkBuilder(std::vector<char *> *cmd, Network *n);
-void addfdbBuilder(std::vector<char *> *cmd, Network *n);
-void createbridgeBuilder(std::vector<char *> *cmd, Network *n);
-void setmasterBuilder(std::vector<char *> *cmd, Network *n);
-void upinterfaceBuilder(std::vector<char *> *cmd, Network *n);
-void upbridgeBuilder(std::vector<char *> *cmd, Network *n);
-void spawnvmBuilder(std::vector<char *> *cmd, Deployment *d);
-void destroyvmBuilder(std::vector<char *> *cmd, Deployment *d);
-void undefinevmBuilder(std::vector<char *> *cmd, Deployment *d);
-void deleteinterfaceBuilder(std::vector<char *> *cmd, Deployment *d);
-void deletebridgeBuilder(std::vector<char *> *cmd, Deployment *d);
 
 int is_interface_online(std::string interface);
 char *getHostname();
-int createLock(char *hostname, char *lpath);
-int deleteLock(char * hostname, char * lpath);
-char *getLockHostname(char *lpath);
 
 Controller::Controller() {}
 
@@ -288,16 +248,17 @@ int Controller::execute(int argc, char *argv[])
         }
 
         int res;
+
+        // Delete the lock. Error if the lock exists and is owned by a different host
         if ((res = deleteLock(hostname, lpath)) == -1){
             printf("Error: deleting lock.\n");
             retval = EXIT_FAILURE;
             goto EXIT_DESTROY;
         }
 
+        // Warn if the lock does not exist.
         if (res == 1){
-            printf("Error: deleting lock.\n");
-            retval = EXIT_FAILURE;
-            goto EXIT_DESTROY;
+            printf("Warning: lock does not exist. Attempting destroy anyway.\n");
         }
 
         //virsh destroy vmid
@@ -317,140 +278,6 @@ int Controller::execute(int argc, char *argv[])
         // TODO
     }
     return retval;
-}
-
-void createlinkBuilder(std::vector<char *> *cmd, Network *n)
-{
-    cmd->push_back((char *)"/usr/sbin/ip");
-    cmd->push_back((char *)"link");
-    cmd->push_back((char *)"add");
-    cmd->push_back((char *)n->interface);
-    cmd->push_back((char *)"type");
-    cmd->push_back((char *)"vxlan");
-    cmd->push_back((char *)"id");
-    cmd->push_back(n->vni);
-    cmd->push_back((char *)"dev");
-    cmd->push_back((char *)"eno1");
-    cmd->push_back((char *)"dstport");
-    cmd->push_back((char *)"0");
-    cmd->push_back(NULL);
-}
-
-void addfdbBuilder(std::vector<char *> *cmd, Network *n)
-{
-    cmd->push_back((char *)"/usr/sbin/bridge");
-    cmd->push_back((char *)"fdb");
-    cmd->push_back((char *)"append");
-    cmd->push_back((char *)"to");
-    cmd->push_back((char *)"00:00:00:00:00:00");
-    cmd->push_back((char *)"dst");
-    cmd->push_back((char *)"192.168.1.101");
-    cmd->push_back((char *)"dev");
-    cmd->push_back((char *)n->interface);
-    cmd->push_back(NULL);
-}
-
-void createbridgeBuilder(std::vector<char *> *cmd, Network *n)
-{
-    cmd->push_back((char *)"/usr/sbin/ip");
-    cmd->push_back((char *)"link");
-    cmd->push_back((char *)"add");
-    cmd->push_back((char *)n->bridge);
-    cmd->push_back((char *)"type");
-    cmd->push_back((char *)"bridge");
-    cmd->push_back(NULL);
-}
-
-void setmasterBuilder(std::vector<char *> *cmd, Network *n)
-{
-    cmd->push_back((char *)"/usr/sbin/ip");
-    cmd->push_back((char *)"link");
-    cmd->push_back((char *)"set");
-    cmd->push_back((char *)n->interface);
-    cmd->push_back((char *)"master");
-    cmd->push_back((char *)n->bridge);
-    cmd->push_back(NULL);
-}
-
-void upinterfaceBuilder(std::vector<char *> *cmd, Network *n)
-{
-    cmd->push_back((char *)"/usr/sbin/ip");
-    cmd->push_back((char *)"link");
-    cmd->push_back((char *)"set");
-    cmd->push_back((char *)n->interface);
-    cmd->push_back((char *)"up");
-    cmd->push_back(NULL);
-}
-
-void upbridgeBuilder(std::vector<char *> *cmd, Network *n)
-{
-    cmd->push_back((char *)"/usr/sbin/ip");
-    cmd->push_back((char *)"link");
-    cmd->push_back((char *)"set");
-    cmd->push_back((char *)n->bridge);
-    cmd->push_back((char *)"up");
-    cmd->push_back(NULL);
-}
-
-void spawnvmBuilder(std::vector<char *> *cmd, Deployment *d)
-{
-
-    cmd->push_back((char *)"/usr/bin/virt-install");
-    cmd->push_back((char *)"--virt-type");
-    cmd->push_back((char *)"kvm");
-    cmd->push_back((char *)"--name");
-    cmd->push_back(d->vmid);
-    cmd->push_back((char *)"--ram");
-    cmd->push_back(d->ram);
-    cmd->push_back((char *)"--vcpus");
-    cmd->push_back(d->vcpu);
-    cmd->push_back((char *)"--os-type");
-    cmd->push_back(d->ostype);
-    cmd->push_back((char *)"--disk");
-    cmd->push_back(d->bootdisk);
-    cmd->push_back((char *)"--disk");
-    cmd->push_back(d->configdisk);
-    // TODO
-    // Attatch additional disks?
-    cmd->push_back((char *)"--import");
-    cmd->push_back((char *)"--network");
-    cmd->push_back(d->networkconfig);
-    cmd->push_back((char *)"--noautoconsole");
-    cmd->push_back(NULL);
-}
-
-void destroyvmBuilder(std::vector<char *> *cmd, Deployment *d)
-{
-    cmd->push_back((char *)"/usr/bin/virsh");
-    cmd->push_back((char *)"destroy");
-    cmd->push_back(d->vmid);
-    cmd->push_back(NULL);
-}
-
-void undefinevmBuilder(std::vector<char *> *cmd, Deployment *d)
-{
-    cmd->push_back((char *)"/usr/bin/virsh");
-    cmd->push_back((char *)"undefine");
-    cmd->push_back(d->vmid);
-    cmd->push_back(NULL);
-}
-
-void deleteinterfaceBuilder(std::vector<char *> *cmd, Network *n)
-{
-    cmd->push_back((char *)"/usr/sbin/ip");
-    cmd->push_back((char *)"link");
-    cmd->push_back((char *)"delete");
-    cmd->push_back((char *)n->interface);
-    cmd->push_back(NULL);
-}
-
-void deletebridgeBuilder(std::vector<char *> *cmd, Network *n)
-{
-    cmd->push_back((char *)"/usr/sbin/ip");
-    cmd->push_back((char *)"link");
-    cmd->push_back((char *)"delete");
-    cmd->push_back((char *)n->bridge);
-    cmd->push_back(NULL);
 }
 
 int is_interface_online(std::string interface)
@@ -483,104 +310,4 @@ int is_interface_online(std::string interface)
     {
         return 0;
     }
-}
-
-char *getHostname()
-{
-    char *hostname = new char[HOST_NAME_MAX];
-    int retval;
-    if ((retval = gethostname(hostname, HOST_NAME_MAX)) == -1)
-    {
-        delete[] hostname;
-        return NULL;
-    }
-    return hostname;
-}
-
-int createLock(char * hostname, char * lpath) {   
-
-    std::ifstream ifile;
-    ifile.open(lpath);
-    
-    // Check if the lock already exists
-    if (ifile.good()){
-        char * lockname = getLockHostname(lpath);
-        // If the lock exists, but it belongs to this computer.
-        if (strcmp(lockname, hostname) == 0){
-            delete lockname;
-            return 1;
-        }
-        // If the lock exists and it doesnt belong to this computer
-        else {
-            delete lockname;
-            return -1;
-        }
-    } 
-    // Lock does not exist  
-    else {
-        std::ofstream ofile;
-        ofile.open(lpath);
-        ofile << "hostname=" << hostname << std::endl;
-        return 0;
-    }
-}
-
-int deleteLock(char * hostname, char * lpath){
-
-    std::ifstream ifile;
-    ifile.open(lpath);
-    
-    // Check if the lock already exists
-    if (ifile.good()){
-        char * lockname = getLockHostname(lpath);
-
-        // If the lock exists and it belongs to this computer.
-        if (strcmp(lockname, hostname) == 0){
-            delete lockname;
-
-            int status;
-            if((status = remove(lpath)) != 0){
-                return -1;
-            }
-            return 0;
-        }
-        // If the lock exists, but it doesnt belong to this computer
-        else {
-            delete lockname;
-            return -1;
-        }
-    } 
-    // Lock does not exist  
-    else {
-        return 1;
-    }
-
-}
-
-char * getLockHostname(char * lpath) {
-
-    char * hostname = new char[HOST_NAME_MAX];
-
-
-    std::fstream newfile;
-    newfile.open(lpath, std::ios::in);
-
-    if (newfile.is_open()) {
-        std::string line;
-        while (getline(newfile, line)) {
-
-            int i = line.find("=");
-            if (i >= 1){
-                std::string n = line.substr(0, i);
-                std::string p = line.substr(i+1);
-
-                if (n == "hostname"){
-                    sprintf(hostname, "%s", p.c_str());
-                    break;
-                }
-            }
-        }
-        newfile.close();
-    }
-    return hostname;
 }
