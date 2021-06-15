@@ -29,6 +29,7 @@ init:
 	@mkdir -p $(OBJPATH)
 
 install:
+	./scripts/installPackages.sh
 	@rm /usr/bin/$(TARGET) -f
 	@make clean
 	make
