@@ -132,8 +132,8 @@ int Controller::execute(int argc, char *argv[])
 
         char dpath[256];
         char lpath[256];
-        sprintf(dpath, "/mnt/dcimages/%s/config/deployment", cmd.vmid.c_str());
-        sprintf(lpath, "/mnt/dcimages/%s/lock", cmd.vmid.c_str());
+        sprintf(dpath, "/mnt/dcimages/deployments/%s/config/deployment", cmd.vmid.c_str());
+        sprintf(lpath, "/mnt/dcimages/deployments/%s/lock", cmd.vmid.c_str());
 
         Deployment *d;
 
@@ -219,8 +219,8 @@ int Controller::execute(int argc, char *argv[])
 
         char dpath[256];
         char lpath[256];
-        sprintf(dpath, "/mnt/dcimages/%s/config/deployment", cmd.vmid.c_str());
-        sprintf(lpath, "/mnt/dcimages/%s/lock", cmd.vmid.c_str());
+        sprintf(dpath, "/mnt/dcimages/deployments/%s/config/deployment", cmd.vmid.c_str());
+        sprintf(lpath, "/mnt/dcimages/deployments/%s/lock", cmd.vmid.c_str());
 
         Deployment * d;
         Network * n;

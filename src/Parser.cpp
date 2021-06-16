@@ -130,8 +130,8 @@ Deployment* ParseDeployment(char * file) {
         char * bootdisk = new char[256];
         char * configdisk = new char[256];
         char * networkconfig = new char[256];
-        sprintf(bootdisk, "path=/mnt/dcimages/%s/disks/boot.qcow2,device=disk", d->vmid);
-        sprintf(configdisk, "path=/mnt/dcimages/%s/disks/seed.qcow2,device=disk", d->vmid);
+        sprintf(bootdisk, "path=/mnt/dcimages/deployments/%s/disks/boot.qcow2,device=disk", d->vmid);
+        sprintf(configdisk, "path=/mnt/dcimages/deployments/%s/disks/seed.qcow2,device=disk", d->vmid);
         sprintf(networkconfig, "bridge=br-vxlan%s,model=virtio,mac=%s", d->vni, d->mac);
         d->bootdisk = bootdisk;
         d->configdisk = configdisk;
