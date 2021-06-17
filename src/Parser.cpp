@@ -58,10 +58,11 @@ Command ParseArgs(int argc, char *argv[]) {
 
     const char *const short_opts = "a:o:v:h";
     const option long_opts[] = {
-        {"action", required_argument, nullptr, 'a'},
-        {"organization", required_argument, nullptr, 'o'},
-        {"vmid", required_argument, nullptr, 'v'},
-        {"help", no_argument, nullptr, 'h'}};
+        {"action", required_argument, 0, 'a'},
+        {"organization", required_argument, 0, 'o'},
+        {"vmid", required_argument, 0, 'v'},
+        {"help", no_argument, 0, 'h'},
+        {nullptr, no_argument, nullptr, 0}};
     mycmd.action = ERROR;
     mycmd.error = "Error: Bad input for action.";
 
@@ -111,16 +112,20 @@ Deployment* ParseDeployment(char * file) {
             if (i >= 1){
                 std::string n = line.substr(0, i);
                 std::string p = line.substr(i+1);
-                char * name = new char[n.length()];
-                char * property = new char[n.length()];
+                char * name = new char[n.length()+1];
+                char * property = new char[p.length()+1];
                 strcpy(name, n.c_str());
                 strcpy(property, p.c_str());
 
                 int res = d->add(name, property);
                 if (res == EXIT_FAILURE){
+                    delete [] name;
+                    delete [] property;
+                    delete d;
                     printf("Error: adding attribute: %s", name);
                     return NULL;
                 }
+                delete [] name;
             }
         }
         newfile.close();

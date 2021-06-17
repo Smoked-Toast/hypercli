@@ -23,8 +23,7 @@ Network::~Network(){
     delete[] vni;
 }
 
-int is_interface_online(std::string interface)
-{
+int is_interface_online(std::string interface) {
     std::vector<char *> inets;
     struct ifaddrs *addresses;
     if (getifaddrs(&addresses) == -1)
@@ -43,14 +42,15 @@ int is_interface_online(std::string interface)
         }
         address = address->ifa_next;
     }
-    freeifaddrs(addresses);
 
-    if (std::find(inets.begin(), inets.end(), interface) != inets.end())
-    {
-        return 1;
+    int retval;
+    for (size_t i = 0; i < inets.size(); i++){
+        if (strcmp(inets[i], interface.c_str())){
+            retval = 1;
+            break;
+        }
     }
-    else
-    {
-        return 0;
-    }
+    retval = 0;
+    freeifaddrs(addresses);
+    return retval;
 }
