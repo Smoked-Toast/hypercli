@@ -91,6 +91,8 @@ void spawnvmBuilder(std::vector<char *> *cmd, Deployment *d)
     cmd->push_back(d->vcpu);
     cmd->push_back((char *)"--os-type");
     cmd->push_back(d->ostype);
+    cmd->push_back((char *)"--os-variant");
+    cmd->push_back((char *)"ubuntu20.04");
     cmd->push_back((char *)"--disk");
     cmd->push_back(d->bootdisk);
     cmd->push_back((char *)"--disk");
